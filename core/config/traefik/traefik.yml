@@ -1,0 +1,46 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: true
+  insecure: false
+
+ping: {}
+
+log:
+  level: INFO
+
+accessLog: {}
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: step-ca
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: infra_net
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+certificatesResolvers:
+  step-ca:
+    acme:
+      # Step CA ACME endpoint — uses internal CA
+      caServer: "https://step-ca:9000/acme/acme/directory"
+      email: "admin@${DOMAIN}"
+      storage: /etc/traefik/acme/acme.json
+      tlsChallenge: {}

@@ -1,0 +1,106 @@
+networks:
+  infra_net:
+    external: true
+
+volumes:
+  forgejo-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/forgejo"}
+  forgejo-postgres:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/forgejo-postgres"}
+  woodpecker-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/woodpecker"}
+
+services:
+
+  forgejo-postgres:
+    image: postgres:16-alpine
+    container_name: forgejo-postgres
+    restart: unless-stopped
+    networks: [infra_net]
+    volumes:
+      - forgejo-postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: forgejo
+      POSTGRES_DB: forgejo
+      POSTGRES_PASSWORD: "${FORGEJO_POSTGRES_PASSWORD}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgejo -d forgejo"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:9
+    container_name: forgejo
+    restart: unless-stopped
+    networks: [infra_net]
+    depends_on:
+      forgejo-postgres:
+        condition: service_healthy
+    volumes:
+      - forgejo-data:/data
+      - ./config/forgejo/app.ini:/data/gitea/conf/app.ini:ro
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      FORGEJO__database__DB_TYPE: postgres
+      FORGEJO__database__HOST: forgejo-postgres:5432
+      FORGEJO__database__NAME: forgejo
+      FORGEJO__database__USER: forgejo
+      FORGEJO__database__PASSWD: "${FORGEJO_POSTGRES_PASSWORD}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.forgejo.rule=Host(`git.${DOMAIN}`)"
+      - "traefik.http.routers.forgejo.entrypoints=websecure"
+      - "traefik.http.routers.forgejo.tls=true"
+      - "traefik.http.routers.forgejo.middlewares=secure-headers@file"
+      - "traefik.http.services.forgejo.loadbalancer.server.port=3000"
+      # SSH passthrough on port 2222
+      - "traefik.tcp.routers.forgejo-ssh.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.forgejo-ssh.entrypoints=ssh"
+      - "traefik.tcp.services.forgejo-ssh.loadbalancer.server.port=22"
+    ports:
+      - "2222:22"   # Git SSH — direct passthrough
+
+  woodpecker-server:
+    image: woodpeckerci/woodpecker-server:latest
+    container_name: woodpecker-server
+    restart: unless-stopped
+    networks: [infra_net]
+    depends_on:
+      - forgejo
+    volumes:
+      - woodpecker-data:/var/lib/woodpecker
+    environment:
+      WOODPECKER_OPEN: "false"
+      WOODPECKER_HOST: "https://ci.${DOMAIN}"
+      WOODPECKER_FORGEJO: "true"
+      WOODPECKER_FORGEJO_URL: "https://git.${DOMAIN}"
+      WOODPECKER_FORGEJO_CLIENT: "${WOODPECKER_FORGEJO_CLIENT:-}"
+      WOODPECKER_FORGEJO_SECRET: "${WOODPECKER_FORGEJO_SECRET:-}"
+      WOODPECKER_AGENT_SECRET: "${WOODPECKER_AGENT_SECRET}"
+      WOODPECKER_ADMIN: "${WOODPECKER_ADMIN:-admin}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.woodpecker.rule=Host(`ci.${DOMAIN}`)"
+      - "traefik.http.routers.woodpecker.entrypoints=websecure"
+      - "traefik.http.routers.woodpecker.tls=true"
+      - "traefik.http.routers.woodpecker.middlewares=secure-headers@file"
+      - "traefik.http.services.woodpecker.loadbalancer.server.port=8000"
+
+  woodpecker-agent:
+    image: woodpeckerci/woodpecker-agent:latest
+    container_name: woodpecker-agent
+    restart: unless-stopped
+    networks: [infra_net]
+    depends_on:
+      - woodpecker-server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WOODPECKER_SERVER: "woodpecker-server:9000"
+      WOODPECKER_AGENT_SECRET: "${WOODPECKER_AGENT_SECRET}"
+      WOODPECKER_MAX_WORKFLOWS: "4"

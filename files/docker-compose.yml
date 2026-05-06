@@ -1,0 +1,40 @@
+networks:
+  infra_net:
+    external: true
+
+volumes:
+  sftpgo-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/sftpgo"}
+
+services:
+
+  sftpgo:
+    image: drakkan/sftpgo:latest
+    container_name: sftpgo
+    restart: unless-stopped
+    networks: [infra_net]
+    volumes:
+      - sftpgo-data:/var/lib/sftpgo
+      - ./config/sftpgo.json:/var/lib/sftpgo/sftpgo.json:ro
+    ports:
+      - "2222:2222"  # SFTP — direct access, no TLS proxy needed
+    environment:
+      SFTPGO_HTTPD__BINDINGS__0__PORT: "8080"
+      SFTPGO_HTTPD__BINDINGS__0__ADDRESS: "0.0.0.0"
+      SFTPGO_SFTPD__BINDINGS__0__PORT: "2222"
+      SFTPGO_SFTPD__BINDINGS__0__ADDRESS: "0.0.0.0"
+      SFTPGO_DATA_PROVIDER__DRIVER: "sqlite"
+      SFTPGO_DATA_PROVIDER__NAME: "/var/lib/sftpgo/sftpgo.db"
+      # OIDC configuration — fill after Authentik OIDC app is created
+      SFTPGO_HTTPD__BINDINGS__0__OIDC__CLIENT_ID: "${SFTPGO_OIDC_CLIENT_ID:-}"
+      SFTPGO_HTTPD__BINDINGS__0__OIDC__CLIENT_SECRET: "${SFTPGO_OIDC_CLIENT_SECRET:-}"
+      SFTPGO_HTTPD__BINDINGS__0__OIDC__CONFIG_URL: "https://auth.${DOMAIN}/application/o/sftpgo/.well-known/openid-configuration"
+      SFTPGO_HTTPD__BINDINGS__0__OIDC__REDIRECT_BASE_URL: "https://files.${DOMAIN}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sftpgo.rule=Host(`files.${DOMAIN}`)"
+      - "traefik.http.routers.sftpgo.entrypoints=websecure"
+      - "traefik.http.routers.sftpgo.tls=true"
+      - "traefik.http.routers.sftpgo.middlewares=secure-headers@file"
+      - "traefik.http.services.sftpgo.loadbalancer.server.port=8080"

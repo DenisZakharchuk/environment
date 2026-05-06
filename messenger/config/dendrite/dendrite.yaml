@@ -1,0 +1,46 @@
+version: 2
+
+global:
+  private_key: /etc/dendrite/matrix_key.pem
+  server_name: "${MATRIX_SERVER_NAME}"
+  trusted_third_party_id_servers: []
+
+client_api:
+  registration_disabled: false
+  rate_limiting:
+    enabled: true
+    threshold: 20
+    cooloff_ms: 500
+
+database:
+  connection_string: "postgresql://dendrite:${DENDRITE_POSTGRES_PASSWORD}@dendrite-postgres/dendrite?sslmode=disable"
+  max_open_conns: 100
+  max_idle_conns: 5
+  conn_max_lifetime: -1
+
+jetstream:
+  storage_path: "/var/dendrite/nats"
+
+cache:
+  max_size_estimated: 1gb
+  max_age: 1h
+
+media_api:
+  base_path: /var/dendrite/media
+  max_file_size_bytes: 104857600  # 100MB
+
+sync_api:
+  real_ip_header: X-Real-IP
+
+logging:
+  - type: std
+    level: info
+
+# OIDC login via Authentik (MSC3861)
+# Uncomment and configure after Authentik OIDC app is created:
+# openid_connect:
+#   enabled: true
+#   issuer: "https://auth.${MATRIX_SERVER_NAME}/application/o/matrix/"
+#   client_id: "dendrite"
+#   client_secret: "change-me"
+#   scopes: ["openid", "profile", "email"]

@@ -1,0 +1,36 @@
+networks:
+  infra_net:
+    external: true
+
+volumes:
+  stalwart-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/stalwart"}
+
+services:
+
+  stalwart-mail:
+    image: stalwartlabs/mail-server:latest
+    container_name: stalwart-mail
+    restart: unless-stopped
+    networks: [infra_net]
+    volumes:
+      - stalwart-data:/opt/stalwart-mail
+    ports:
+      # Mail ports — direct TCP, not proxied (Traefik handles HTTP only)
+      - "25:25"     # SMTP (inbound)
+      - "465:465"   # SMTPS (submission, TLS)
+      - "587:587"   # SMTP submission (STARTTLS)
+      - "993:993"   # IMAPS
+      - "143:143"   # IMAP (STARTTLS)
+      - "4190:4190" # ManageSieve
+    environment:
+      TZ: UTC
+    labels:
+      - "traefik.enable=true"
+      # Admin web UI
+      - "traefik.http.routers.stalwart-admin.rule=Host(`mail.${DOMAIN}`)"
+      - "traefik.http.routers.stalwart-admin.entrypoints=websecure"
+      - "traefik.http.routers.stalwart-admin.tls=true"
+      - "traefik.http.routers.stalwart-admin.middlewares=secure-headers@file"
+      - "traefik.http.services.stalwart-admin.loadbalancer.server.port=8080"

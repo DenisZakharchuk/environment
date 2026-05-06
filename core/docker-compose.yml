@@ -1,0 +1,114 @@
+networks:
+  infra_net:
+    external: true
+
+volumes:
+  step-ca-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/../data/step-ca
+  traefik-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/../data/traefik
+  technitium-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/../data/technitium
+
+services:
+
+  # ── Step CA — Internal Certificate Authority ─────────────────────────────────
+  step-ca:
+    image: smallstep/step-ca:latest
+    container_name: step-ca
+    restart: unless-stopped
+    networks:
+      - infra_net
+    volumes:
+      - step-ca-data:/home/step
+    environment:
+      DOCKER_STEPCA_INIT_NAME: "Infra Local CA"
+      DOCKER_STEPCA_INIT_DNS_NAMES: "ca.${DOMAIN},step-ca,localhost"
+      DOCKER_STEPCA_INIT_ADDRESS: ":9000"
+      DOCKER_STEPCA_INIT_ACME: "true"
+    healthcheck:
+      test: ["CMD", "step", "ca", "health", "--ca-url", "https://localhost:9000", "--root", "/home/step/certs/root_ca.crt"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.step-ca.rule=Host(`ca.${DOMAIN}`)"
+      - "traefik.http.routers.step-ca.entrypoints=websecure"
+      - "traefik.http.routers.step-ca.tls=true"
+      - "traefik.http.services.step-ca.loadbalancer.server.port=9000"
+      - "traefik.http.services.step-ca.loadbalancer.server.scheme=https"
+
+  # ── Traefik — Reverse Proxy & TLS Termination ─────────────────────────────────
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    depends_on:
+      step-ca:
+        condition: service_healthy
+    networks:
+      - infra_net
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./config/traefik/dynamic:/etc/traefik/dynamic:ro
+      - traefik-data:/etc/traefik/acme
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls=true"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=auth-basic@file"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Technitium DNS — Internal DNS Server ──────────────────────────────────────
+  technitium-dns:
+    image: technitium/dns-server:latest
+    container_name: technitium-dns
+    restart: unless-stopped
+    networks:
+      - infra_net
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      # DNS-over-HTTPS (optional, for clients that support it)
+      - "5380:5380/tcp"
+    volumes:
+      - technitium-data:/etc/dns
+    environment:
+      DNS_SERVER_DOMAIN: "dns.${DOMAIN}"
+      DNS_SERVER_ADMIN_PASSWORD: "${TECHNITIUM_ADMIN_PASSWORD:-change-me}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5380/api/user/login?user=admin&pass=${TECHNITIUM_ADMIN_PASSWORD:-change-me}&includeInfo=false"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dns-ui.rule=Host(`dns.${DOMAIN}`)"
+      - "traefik.http.routers.dns-ui.entrypoints=websecure"
+      - "traefik.http.routers.dns-ui.tls=true"
+      - "traefik.http.services.dns-ui.loadbalancer.server.port=5380"

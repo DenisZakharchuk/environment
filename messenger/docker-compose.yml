@@ -1,0 +1,67 @@
+networks:
+  infra_net:
+    external: true
+
+volumes:
+  dendrite-postgres:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/dendrite-postgres"}
+  dendrite-media:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/dendrite-media"}
+
+services:
+
+  dendrite-postgres:
+    image: postgres:16-alpine
+    container_name: dendrite-postgres
+    restart: unless-stopped
+    networks: [infra_net]
+    volumes:
+      - dendrite-postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: dendrite
+      POSTGRES_DB: dendrite
+      POSTGRES_PASSWORD: "${DENDRITE_POSTGRES_PASSWORD}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dendrite -d dendrite"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  dendrite:
+    image: ghcr.io/element-hq/dendrite:latest
+    container_name: dendrite
+    restart: unless-stopped
+    networks: [infra_net]
+    depends_on:
+      dendrite-postgres:
+        condition: service_healthy
+    volumes:
+      - ./config/dendrite/dendrite.yaml:/etc/dendrite/dendrite.yaml:ro
+      - dendrite-media:/var/dendrite/media
+    environment:
+      DENDRITE_CONFIG: /etc/dendrite/dendrite.yaml
+    labels:
+      - "traefik.enable=true"
+      # Matrix client-server API
+      - "traefik.http.routers.dendrite.rule=Host(`matrix.${DOMAIN}`)"
+      - "traefik.http.routers.dendrite.entrypoints=websecure"
+      - "traefik.http.routers.dendrite.tls=true"
+      - "traefik.http.routers.dendrite.middlewares=secure-headers@file"
+      - "traefik.http.services.dendrite.loadbalancer.server.port=8008"
+
+  element-web:
+    image: vectorim/element-web:latest
+    container_name: element-web
+    restart: unless-stopped
+    networks: [infra_net]
+    volumes:
+      - ./config/dendrite/element-config.json:/app/config.json:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.element.rule=Host(`chat.${DOMAIN}`)"
+      - "traefik.http.routers.element.entrypoints=websecure"
+      - "traefik.http.routers.element.tls=true"
+      - "traefik.http.routers.element.middlewares=secure-headers@file"
+      - "traefik.http.services.element.loadbalancer.server.port=80"

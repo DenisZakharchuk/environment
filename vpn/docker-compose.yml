@@ -1,0 +1,45 @@
+networks:
+  infra_net:
+    external: true
+
+volumes:
+  wireguard-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/wireguard"}
+
+services:
+
+  wg-easy:
+    image: ghcr.io/wg-easy/wg-easy:latest
+    container_name: wg-easy
+    restart: unless-stopped
+    networks: [infra_net]
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+    ports:
+      - "51820:51820/udp"   # WireGuard VPN port — must be reachable externally
+    volumes:
+      - wireguard-data:/etc/wireguard
+    environment:
+      # Public hostname/IP your VPN clients will connect to
+      WG_HOST: "${HOST_IP}"
+      PASSWORD_HASH: "${WG_PASSWORD_HASH}"
+      WG_DEFAULT_ADDRESS: "${WG_DEFAULT_ADDRESS:-10.8.0.x}"
+      # VPN clients use internal DNS server for name resolution
+      WG_DEFAULT_DNS: "${HOST_IP}"
+      WG_MTU: "1420"
+      WG_ALLOWED_IPS: "0.0.0.0/0"
+      WG_PERSISTENT_KEEPALIVE: "25"
+      UI_TRAFFIC_STATS: "true"
+      UI_CHART_TYPE: "1"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wg-ui.rule=Host(`vpn.${DOMAIN}`)"
+      - "traefik.http.routers.wg-ui.entrypoints=websecure"
+      - "traefik.http.routers.wg-ui.tls=true"
+      - "traefik.http.routers.wg-ui.middlewares=secure-headers@file"
+      - "traefik.http.services.wg-ui.loadbalancer.server.port=51821"

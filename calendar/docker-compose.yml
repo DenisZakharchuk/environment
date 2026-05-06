@@ -1,0 +1,29 @@
+networks:
+  infra_net:
+    external: true
+
+volumes:
+  radicale-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/radicale"}
+
+services:
+
+  radicale:
+    image: tomsquest/docker-radicale:latest
+    container_name: radicale
+    restart: unless-stopped
+    networks: [infra_net]
+    volumes:
+      - radicale-data:/data
+      - ./config/radicale.cfg:/config/config:ro
+    environment:
+      TZ: UTC
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.radicale.rule=Host(`cal.${DOMAIN}`)"
+      - "traefik.http.routers.radicale.entrypoints=websecure"
+      - "traefik.http.routers.radicale.tls=true"
+      # Forward auth via Authentik — users authenticated by SSO before reaching Radicale
+      - "traefik.http.routers.radicale.middlewares=authentik-forward-auth@file,secure-headers@file"
+      - "traefik.http.services.radicale.loadbalancer.server.port=5232"

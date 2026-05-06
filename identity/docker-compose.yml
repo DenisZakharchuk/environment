@@ -1,0 +1,117 @@
+networks:
+  infra_net:
+    external: true
+
+volumes:
+  authentik-postgres:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/authentik-postgres"}
+  authentik-media:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/authentik-media"}
+  authentik-certs:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/authentik-certs"}
+  authentik-redis:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${PWD}/../data/authentik-redis"}
+
+x-authentik-env: &authentik-env
+  AUTHENTIK_REDIS__HOST: authentik-redis
+  AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+  AUTHENTIK_POSTGRESQL__USER: authentik
+  AUTHENTIK_POSTGRESQL__NAME: authentik
+  AUTHENTIK_POSTGRESQL__PASSWORD: "${AUTHENTIK_POSTGRES_PASSWORD}"
+  AUTHENTIK_SECRET_KEY: "${AUTHENTIK_SECRET_KEY}"
+  AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+  AUTHENTIK_LOG_LEVEL: info
+
+services:
+
+  authentik-postgres:
+    image: postgres:16-alpine
+    container_name: authentik-postgres
+    restart: unless-stopped
+    networks: [infra_net]
+    volumes:
+      - authentik-postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_DB: authentik
+      POSTGRES_PASSWORD: "${AUTHENTIK_POSTGRES_PASSWORD}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik -d authentik"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  authentik-redis:
+    image: redis:7-alpine
+    container_name: authentik-redis
+    restart: unless-stopped
+    networks: [infra_net]
+    volumes:
+      - authentik-redis:/data
+    command: --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2024.12
+    container_name: authentik-server
+    restart: unless-stopped
+    command: server
+    networks: [infra_net]
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    volumes:
+      - authentik-media:/media
+      - authentik-certs:/certs
+      - ./config/authentik/custom-templates:/templates
+    environment:
+      <<: *authentik-env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authentik.rule=Host(`auth.${DOMAIN}`)"
+      - "traefik.http.routers.authentik.entrypoints=websecure"
+      - "traefik.http.routers.authentik.tls=true"
+      - "traefik.http.routers.authentik.middlewares=secure-headers@file"
+      - "traefik.http.services.authentik.loadbalancer.server.port=9000"
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2024.12
+    container_name: authentik-worker
+    restart: unless-stopped
+    command: worker
+    networks: [infra_net]
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    volumes:
+      - authentik-media:/media
+      - authentik-certs:/certs
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      <<: *authentik-env
+
+  # Embedded outpost (proxy provider) — enables forward auth for other services
+  authentik-proxy:
+    image: ghcr.io/goauthentik/proxy:2024.12
+    container_name: authentik-proxy
+    restart: unless-stopped
+    networks: [infra_net]
+    depends_on:
+      - authentik-server
+    environment:
+      AUTHENTIK_HOST: "https://auth.${DOMAIN}"
+      AUTHENTIK_INSECURE: "false"
+      # Token set in Authentik UI after first login → Settings → Outposts
+      AUTHENTIK_TOKEN: "${AUTHENTIK_OUTPOST_TOKEN:-}"

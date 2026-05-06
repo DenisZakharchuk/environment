@@ -1,0 +1,39 @@
+http:
+  middlewares:
+    # HTTP Basic Auth for Traefik dashboard
+    # Generate with: echo $(htpasswd -nB admin) | sed -e s/\\$/\\$\\$/g
+    auth-basic:
+      basicAuth:
+        usersFile: /etc/traefik/dynamic/.htpasswd
+
+    # Authentik forward auth — applied to services that need SSO
+    # After identity stack is running, set forwardingAddress to Authentik outpost URL
+    authentik-forward-auth:
+      forwardAuth:
+        address: "http://authentik-proxy:9000/outpost.goauthentik.io/auth/traefik"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - X-authentik-username
+          - X-authentik-groups
+          - X-authentik-email
+          - X-authentik-name
+          - X-authentik-uid
+          - X-authentik-jwt
+          - X-authentik-meta-jwks
+          - X-authentik-meta-outpost
+          - X-authentik-meta-provider
+          - X-authentik-meta-app
+          - X-authentik-meta-version
+
+    # Secure headers applied to all services
+    secure-headers:
+      headers:
+        sslRedirect: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
