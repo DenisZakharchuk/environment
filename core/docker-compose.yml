@@ -68,6 +68,8 @@ services:
     environment:
       # Trust the internal Step CA root so Traefik can reach the ACME endpoint
       LEGO_CA_CERTIFICATES: /etc/ssl/infra/root_ca.crt
+      # Force modern Docker API version (daemon requires >= 1.40)
+      DOCKER_API_VERSION: "1.41"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
