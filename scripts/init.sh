@@ -91,7 +91,7 @@ if scope_enabled "network"; then
     step certificate fingerprint /home/step/certs/root_ca.crt 2>/dev/null || true)"
 
   if [[ -n "$FINGERPRINT" ]]; then
-    sed -i "s|^STEP_CA_FINGERPRINT=.*|STEP_CA_FINGERPRINT=${FINGERPRINT}|" "$ENV_FILE"
+    sed -i "s|^STEP_CA_FINGERPRINT=.*|STEP_CA_FINGERPRINT='${FINGERPRINT}'|" "$ENV_FILE"
     success "STEP_CA_FINGERPRINT updated in .env: ${FINGERPRINT}"
   else
     warn "Could not read fingerprint — check Step CA data directory"

@@ -50,9 +50,9 @@ set_env_var() {
   fi
 
   if grep -q "^${key}=" "$ENV_FILE"; then
-    sed -i "s|^${key}=.*|${key}=${INPUT}|" "$ENV_FILE"
+    sed -i "s|^${key}=.*|${key}='${INPUT}'|" "$ENV_FILE"
   else
-    echo "${key}=${INPUT}" >> "$ENV_FILE"
+    echo "${key}='${INPUT}'" >> "$ENV_FILE"
   fi
   success "${key} saved"
 }
