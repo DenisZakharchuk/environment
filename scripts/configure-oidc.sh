@@ -25,7 +25,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 # shellcheck source=/dev/null
 source "$ENV_FILE"
-DOMAIN="${DOMAIN:-infra.local}"
+DOMAIN="${DOMAIN:-infra.home}"
 
 # Read ENABLED_SCOPES — default to all scopes for backwards compatibility
 read -ra ENABLED_SCOPES_ARR <<< "${ENABLED_SCOPES:-network identity dev productivity communication observability}"

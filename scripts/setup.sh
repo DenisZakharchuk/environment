@@ -197,7 +197,7 @@ DENDRITE_POSTGRES_PASSWORD="" GRAFANA_ADMIN_PASSWORD=""
 # ── Section 1 — Infrastructure configuration ──────────────────────────────────
 section "1 / 3  Infrastructure configuration"
 
-prompt_value DOMAIN "Internal domain (used for all service URLs)" "infra.local"
+prompt_value DOMAIN "Internal domain (used for all service URLs)" "infra.home"
 [[ -z "$DOMAIN" ]] && { err "DOMAIN cannot be empty."; exit 1; }
 
 DETECTED_IP="$(detect_host_ip)"

@@ -23,24 +23,24 @@ environment/
 
 All containers share a single external Docker network (`infra_net`). Traefik auto-discovers services via Docker labels. Every service gets a TLS certificate from the internal Step CA via ACME — no manual cert management.
 
-### Service URLs (replace `infra.local` with your domain)
+### Service URLs (replace `infra.home` with your domain)
 
 | Service | URL |
 |---|---|
-| Traefik dashboard | `https://traefik.infra.local` |
-| Certificate Authority | `https://ca.infra.local` |
-| DNS admin | `https://dns.infra.local` |
-| SSO / Identity | `https://auth.infra.local` |
-| VPN management | `https://vpn.infra.local` |
-| Git hosting | `https://git.infra.local` |
-| CI/CD | `https://ci.infra.local` |
-| File sharing | `https://files.infra.local` |
-| Mail admin | `https://mail.infra.local` |
-| Calendar / Contacts | `https://cal.infra.local` |
-| Chat (Element) | `https://chat.infra.local` |
-| Matrix homeserver | `https://matrix.infra.local` |
-| Grafana | `https://grafana.infra.local` |
-| Prometheus | `https://prometheus.infra.local` |
+| Traefik dashboard | `https://traefik.infra.home` |
+| Certificate Authority | `https://ca.infra.home` |
+| DNS admin | `https://dns.infra.home` |
+| SSO / Identity | `https://auth.infra.home` |
+| VPN management | `https://vpn.infra.home` |
+| Git hosting | `https://git.infra.home` |
+| CI/CD | `https://ci.infra.home` |
+| File sharing | `https://files.infra.home` |
+| Mail admin | `https://mail.infra.home` |
+| Calendar / Contacts | `https://cal.infra.home` |
+| Chat (Element) | `https://chat.infra.home` |
+| Matrix homeserver | `https://matrix.infra.home` |
+| Grafana | `https://grafana.infra.home` |
+| Prometheus | `https://prometheus.infra.home` |
 
 ## Prerequisites
 
@@ -115,8 +115,8 @@ make core
 ```
 
 Then open `http://HOST_IP:5380` (Technitium DNS) and:
-- Create a zone for your internal domain (e.g. `infra.local`)
-- Add an A-record `*.infra.local` → `HOST_IP` (wildcard)
+- Create a zone for your internal domain (e.g. `infra.home`)
+- Add an A-record `*.infra.home` → `HOST_IP` (wildcard)
 - Set upstream forwarders (e.g. `1.1.1.1`, `8.8.8.8`)
 
 Point your devices' DNS to `HOST_IP`.
@@ -127,7 +127,7 @@ Point your devices' DNS to `HOST_IP`.
 make identity
 ```
 
-Open `https://auth.infra.local` and complete the Authentik setup wizard.
+Open `https://auth.infra.home` and complete the Authentik setup wizard.
 
 ### 4. Start remaining services
 

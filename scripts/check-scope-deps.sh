@@ -34,7 +34,7 @@ if [[ -f "$ENV_FILE" ]]; then
   # shellcheck source=/dev/null
   source "$ENV_FILE"
 fi
-DOMAIN="${DOMAIN:-infra.local}"
+DOMAIN="${DOMAIN:-infra.home}"
 HOST_IP="${HOST_IP:-}"
 
 # ── Load target scope to find its dependencies ────────────────────────────────
