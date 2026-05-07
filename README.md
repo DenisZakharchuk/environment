@@ -50,34 +50,25 @@ All containers share a single external Docker network (`infra_net`). Traefik aut
 
 ## Quick Start
 
-### 1. Configure
+### 1. Run the interactive setup wizard
 
 ```bash
-cp .env.example .env
+make setup
 ```
 
-Edit `.env` — at minimum set:
+This single command:
+1. Checks prerequisites (`docker`, `openssl`)
+2. Prompts for your domain, server IP, and all service passwords (each confirmed by typing twice, minimum 12 characters)
+3. Auto-generates all cryptographic secrets (`AUTHENTIK_SECRET_KEY`, `WOODPECKER_AGENT_SECRET`, WireGuard bcrypt hash)
+4. Writes a complete `.env` file
+5. Creates the `infra_net` Docker network and all data directories
+6. Initialises Step CA and writes its root certificate fingerprint back into `.env`
+7. Generates the Dendrite Matrix signing key
+8. Writes the Traefik dashboard `htpasswd` entry
 
-- `DOMAIN` — your internal domain (e.g. `infra.local`)
-- `HOST_IP` — server's LAN IP address
-- All `*_PASSWORD` variables — use strong, unique passwords
+If `.env` already exists, the wizard offers to re-run, skip to init, or quit.
 
-### 2. Bootstrap (run once)
-
-```bash
-make init
-```
-
-This creates the `infra_net` Docker network, all data directories, and initializes Step CA. The CA root certificate fingerprint is written back into `.env` automatically.
-
-### 3. Generate Traefik dashboard password
-
-```bash
-htpasswd -nB admin | sed 's/\$/\$\$/g'
-# Paste the output into core/config/traefik/dynamic/.htpasswd
-```
-
-### 4. Start core services
+### 2. Start core services
 
 ```bash
 make core
@@ -90,17 +81,15 @@ Then open `http://HOST_IP:5380` (Technitium DNS) and:
 
 Point your devices' DNS to `HOST_IP`.
 
-### 5. Start identity (SSO)
+### 3. Start identity (SSO)
 
 ```bash
 make identity
 ```
 
-Open `https://auth.infra.local` and complete the Authentik setup wizard. Then:
-- Create OIDC/OAuth2 provider applications for each service you plan to run
-- Copy the generated client ID and secret into `.env` for the corresponding service
+Open `https://auth.infra.local` and complete the Authentik setup wizard.
 
-### 6. Start remaining services
+### 4. Start remaining services
 
 Services are independent — start only what you need:
 
@@ -114,11 +103,21 @@ make messenger
 make monitoring
 ```
 
-Or start everything at once:
+Or start all enabled scopes in dependency order:
 
 ```bash
-make up-all
+make scope-all
 ```
+
+### 5. Configure OIDC integrations
+
+After services are running, create OIDC apps in Authentik and the Forgejo OAuth app for Woodpecker, then run:
+
+```bash
+make configure-oidc
+```
+
+This interactive script walks through each integration, shows you exactly where to find each token in the UI, and writes the values into `.env`. Restart the affected services afterwards.
 
 ## Service Trust Model
 
@@ -128,6 +127,57 @@ Service trust is managed by **Step CA** with two mechanisms:
 2. **OIDC provisioner** — Step CA can be configured to require Authentik authentication before issuing a certificate, binding service identity to the SSO layer.
 
 For immediate revocation, Step CA also supports CRL and OCSP endpoints.
+
+## Scopes
+
+Services are grouped into **scopes** — logical deployment units with declared dependencies. The scope system lets you deploy only what you need and ensures services start in the correct order.
+
+### Available scopes
+
+| Scope | Services | Hard deps | Soft deps |
+|---|---|---|---|
+| `network` | Traefik, Step CA, Technitium DNS, WireGuard | — | — |
+| `identity` | Authentik (SSO/OIDC) | network | — |
+| `dev` | Forgejo, Woodpecker CI | network | identity |
+| `productivity` | SFTPGo, Stalwart Mail, Radicale | network | identity |
+| `communication` | Dendrite, Element Web | network | identity |
+| `observability` | Prometheus, Loki, Grafana | network | identity |
+
+> **Hard dependency**: the dependent scope will refuse to start if the required scope's health check fails.  
+> **Soft dependency**: a warning is printed, but startup continues (reduced functionality — e.g. no OIDC login).  
+> **Special case**: Radicale (calendar) uses Authentik forward-auth middleware. `setup.sh` automatically enables the `identity` scope when `productivity` is selected.
+
+### Dependency graph
+
+```
+network (always first)
+  ├── identity
+  │     └── (soft dep of: dev, productivity, communication, observability)
+  ├── dev
+  ├── productivity
+  ├── communication
+  └── observability
+```
+
+### Scope selection
+
+`make setup` presents an interactive scope selection menu. Your choices are saved as `ENABLED_SCOPES` in `.env`. Only passwords and secrets relevant to enabled scopes are prompted.
+
+To change your scope selection later, re-run `make setup` (choose **[r]** at the resume prompt) or edit `ENABLED_SCOPES` in `.env` and re-run `make init`.
+
+### Scope make targets
+
+```
+make scope-network        Start network scope (no dep check)
+make scope-identity       Start identity scope (checks: network healthy)
+make scope-dev            Start dev scope (checks: network; warns if no identity)
+make scope-productivity   Start productivity scope (checks: network; warns if no identity)
+make scope-communication  Start communication scope (checks: network; warns if no identity)
+make scope-observability  Start observability scope (checks: network; warns if no identity)
+make scope-all            Start all ENABLED_SCOPES in dependency order
+make scope-down-all       Stop all ENABLED_SCOPES in reverse order
+make scope-status         Show live health check results for all enabled scopes
+```
 
 ## Adding a New Service
 
@@ -142,33 +192,46 @@ No other services need to be modified or restarted.
 
 ## Post-Install Checklist
 
-- [ ] `.env` — all passwords set, `HOST_IP` and `DOMAIN` correct
-- [ ] `core/config/traefik/dynamic/.htpasswd` — real bcrypt hash for Traefik dashboard
-- [ ] Technitium — internal zone and wildcard A-record created
-- [ ] Authentik — initial setup complete, OIDC apps created per service
-- [ ] Woodpecker — OAuth app created in Forgejo UI (`git.infra.local` → Settings → Applications), client ID/secret in `.env`
-- [ ] WireGuard — `WG_PASSWORD_HASH` set (bcrypt of chosen password; see [wg-easy docs](https://github.com/wg-easy/wg-easy))
-- [ ] Dendrite — Matrix signing key generated and mounted (see `messenger/config/dendrite/dendrite.yaml`)
+- [ ] `make setup` completed — `.env` written with no placeholder values
+- [ ] Technitium DNS — internal zone and wildcard A-record created
+- [ ] Authentik — initial setup complete
+- [ ] `make configure-oidc` run — all OIDC tokens filled in
+- [ ] Services restarted after `configure-oidc`
 - [ ] Mail DNS — SPF, DKIM, DMARC records configured in your public DNS if sending external mail
 
 ## Makefile Reference
 
 ```
-make help         Show all available targets
-make init         Bootstrap: network, data dirs, Step CA
-make core         Start Traefik + Step CA + DNS
-make identity     Start Authentik
-make vpn          Start WireGuard
-make git          Start Forgejo + Woodpecker
-make files        Start SFTPGo
-make mail         Start Stalwart Mail
-make calendar     Start Radicale
-make messenger    Start Dendrite + Element Web
-make monitoring   Start Prometheus + Grafana + Loki
-make up-all       Start all services in order
-make down-all     Stop all services
-make ps           Show running containers
-make logs SVC=X   Tail logs for a service group (e.g. SVC=core)
+make help                 Show all available targets
+make setup                Interactive wizard: scope selection, prompts, secrets, writes .env, calls init
+make init                 Non-interactive bootstrap (requires existing .env)
+make configure-oidc       Fill in post-UI OIDC tokens interactively
+
+# Scope targets (dependency-aware — preferred over individual targets)
+make scope-network        Start Traefik + Step CA + DNS + WireGuard
+make scope-identity       Start Authentik (checks network healthy first)
+make scope-dev            Start Forgejo + Woodpecker CI
+make scope-productivity   Start SFTPGo + Stalwart Mail + Radicale
+make scope-communication  Start Dendrite + Element Web
+make scope-observability  Start Prometheus + Grafana + Loki
+make scope-all            Start all enabled scopes in dependency order
+make scope-down-all       Stop all enabled scopes in reverse order
+make scope-status         Show live health status of all enabled scopes
+
+# Individual targets (no dependency checking)
+make core                 Start Traefik + Step CA + DNS
+make identity             Start Authentik
+make vpn                  Start WireGuard
+make git                  Start Forgejo + Woodpecker
+make files                Start SFTPGo
+make mail                 Start Stalwart Mail
+make calendar             Start Radicale
+make messenger            Start Dendrite + Element Web
+make monitoring           Start Prometheus + Grafana + Loki
+make up-all               Start all services in order
+make down-all             Stop all services
+make ps                   Show running containers
+make logs SVC=X           Tail logs for a service group (e.g. SVC=core)
 ```
 
 ## Security Notes
@@ -178,3 +241,23 @@ make logs SVC=X   Tail logs for a service group (e.g. SVC=core)
 - Security headers (HSTS, X-Frame-Options, etc.) are applied globally via Traefik middleware
 - Secrets are in `.env` which is gitignored — never commit it
 - The `data/` directory is gitignored — contains all persistent service data
+
+## Future: Horizontal Scaling (Docker Swarm)
+
+The current architecture uses Docker Compose and is intentionally scoped to a single-node deployment. The design is Swarm-ready and the migration would require minimal changes:
+
+| Current (Compose) | Swarm equivalent |
+|---|---|
+| `docker network create infra_net` | `docker network create --driver overlay infra_net` |
+| `docker compose ... up -d` | `docker stack deploy -c compose.yml stack_name` |
+| `.env` file bind-mounted | Docker Secrets (`docker secret create`) |
+| Traefik Docker provider | Traefik Docker Swarm provider (one label change) |
+
+What would change:
+- **Networking**: switch from bridge to overlay network (one flag)
+- **Secrets**: migrate plaintext `.env` values to Docker Secrets
+- **Traefik**: enable Swarm mode (`swarmMode: true`) + add `deploy.labels` in compose files
+- **Placement constraints**: pin stateful services (databases, Step CA) to manager or labelled nodes
+- **Storage**: replace bind mounts with named volumes or a distributed storage driver (NFS, GlusterFS, etc.)
+
+This is reserved for a future iteration. The current single-node setup handles typical small-team workloads and is straightforward to migrate when horizontal scaling becomes necessary.

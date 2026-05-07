@@ -40,6 +40,7 @@ services:
     volumes:
       - ./config/dendrite/dendrite.yaml:/etc/dendrite/dendrite.yaml:ro
       - dendrite-media:/var/dendrite/media
+      - ${PWD}/../data/dendrite-keys/matrix_key.pem:/etc/dendrite/matrix_key.pem:ro
     environment:
       DENDRITE_CONFIG: /etc/dendrite/dendrite.yaml
     labels:
