@@ -65,11 +65,15 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      # Trust the internal Step CA root so Traefik can reach the ACME endpoint
+      LEGO_CA_CERTIFICATES: /etc/ssl/infra/root_ca.crt
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./config/traefik/dynamic:/etc/traefik/dynamic:ro
       - traefik-data:/etc/traefik/acme
+      - ${PWD}/data/step-ca/certs/root_ca.crt:/etc/ssl/infra/root_ca.crt:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
