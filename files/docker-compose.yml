@@ -5,7 +5,7 @@ networks:
 volumes:
   sftpgo-data:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/sftpgo"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/sftpgo"}
 
 services:
 

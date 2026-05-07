@@ -5,13 +5,13 @@ networks:
 volumes:
   forgejo-data:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/forgejo"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/forgejo"}
   forgejo-postgres:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/forgejo-postgres"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/forgejo-postgres"}
   woodpecker-data:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/woodpecker"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/woodpecker"}
 
 services:
 

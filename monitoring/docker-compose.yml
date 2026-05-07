@@ -5,13 +5,13 @@ networks:
 volumes:
   prometheus-data:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/prometheus"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/prometheus"}
   grafana-data:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/grafana"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/grafana"}
   loki-data:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/loki"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/loki"}
 
 services:
 

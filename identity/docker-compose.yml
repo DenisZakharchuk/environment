@@ -5,16 +5,16 @@ networks:
 volumes:
   authentik-postgres:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/authentik-postgres"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/authentik-postgres"}
   authentik-media:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/authentik-media"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/authentik-media"}
   authentik-certs:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/authentik-certs"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/authentik-certs"}
   authentik-redis:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/authentik-redis"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/authentik-redis"}
 
 x-authentik-env: &authentik-env
   AUTHENTIK_REDIS__HOST: authentik-redis

@@ -75,12 +75,18 @@ if scope_enabled "network"; then
     info "Initializing Step CA (pulling smallstep/step-ca if needed)..."
     docker run --rm \
       -v "$ROOT_DIR/data/step-ca:/home/step" \
-      -e DOCKER_STEPCA_INIT_NAME="Infra Local CA" \
-      -e DOCKER_STEPCA_INIT_DNS_NAMES="ca.${DOMAIN},step-ca,localhost" \
-      -e DOCKER_STEPCA_INIT_PROVISIONER_NAME="admin" \
-      -e DOCKER_STEPCA_INIT_ADDRESS=":9000" \
-      -e DOCKER_STEPCA_INIT_ACME="true" \
-      smallstep/step-ca:latest step ca init --acme --non-interactive
+      --entrypoint /bin/sh \
+      smallstep/step-ca:latest -c \
+        "head -c 32 /dev/urandom | base64 > /home/step/password.txt && \
+         step ca init \
+           --name='Infra Local CA' \
+           --dns='ca.${DOMAIN}' --dns='step-ca' --dns='localhost' \
+           --address=':9000' \
+           --provisioner='admin' \
+           --deployment-type=standalone \
+           --password-file=/home/step/password.txt \
+           --provisioner-password-file=/home/step/password.txt \
+           --acme"
     success "Step CA initialized"
   fi
 

@@ -5,10 +5,10 @@ networks:
 volumes:
   dendrite-postgres:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/dendrite-postgres"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/dendrite-postgres"}
   dendrite-media:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/dendrite-media"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/dendrite-media"}
 
 services:
 
@@ -40,7 +40,7 @@ services:
     volumes:
       - ./config/dendrite/dendrite.yaml:/etc/dendrite/dendrite.yaml:ro
       - dendrite-media:/var/dendrite/media
-      - ${PWD}/../data/dendrite-keys/matrix_key.pem:/etc/dendrite/matrix_key.pem:ro
+      - ${PWD}/data/dendrite-keys/matrix_key.pem:/etc/dendrite/matrix_key.pem:ro
     environment:
       DENDRITE_CONFIG: /etc/dendrite/dendrite.yaml
     labels:

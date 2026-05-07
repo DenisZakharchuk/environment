@@ -8,19 +8,19 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${PWD}/../data/step-ca
+      device: ${PWD}/data/step-ca
   traefik-data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${PWD}/../data/traefik
+      device: ${PWD}/data/traefik
   technitium-data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${PWD}/../data/technitium
+      device: ${PWD}/data/technitium
 
 services:
 

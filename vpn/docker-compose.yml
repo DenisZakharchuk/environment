@@ -5,7 +5,7 @@ networks:
 volumes:
   wireguard-data:
     driver: local
-    driver_opts: {type: none, o: bind, device: "${PWD}/../data/wireguard"}
+    driver_opts: {type: none, o: bind, device: "${PWD}/data/wireguard"}
 
 services:
 
