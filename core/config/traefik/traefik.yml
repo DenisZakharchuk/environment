@@ -30,6 +30,7 @@ entryPoints:
 
 providers:
   docker:
+    endpoint: "tcp://docker-api-proxy:2375"
     exposedByDefault: false
     network: infra_net
   file:

@@ -52,6 +52,17 @@ services:
       - "traefik.http.services.step-ca.loadbalancer.server.port=9000"
       - "traefik.http.services.step-ca.loadbalancer.server.scheme=https"
 
+  # ── Docker API Proxy — rewrites old API versions so Traefik works with Docker 25+ ─
+  docker-api-proxy:
+    image: nginx:alpine
+    container_name: docker-api-proxy
+    restart: unless-stopped
+    networks:
+      - infra_net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/docker-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+
   # ── Traefik — Reverse Proxy & TLS Termination ─────────────────────────────────
   traefik:
     image: traefik:v3.3
@@ -60,6 +71,8 @@ services:
     depends_on:
       step-ca:
         condition: service_healthy
+      docker-api-proxy:
+        condition: service_started
     networks:
       - infra_net
     ports:
@@ -68,10 +81,7 @@ services:
     environment:
       # Trust the internal Step CA root so Traefik can reach the ACME endpoint
       LEGO_CA_CERTIFICATES: /etc/ssl/infra/root_ca.crt
-      # Force modern Docker API version (daemon requires >= 1.40)
-      DOCKER_API_VERSION: "1.41"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./config/traefik/dynamic:/etc/traefik/dynamic:ro
       - traefik-data:/etc/traefik/acme
