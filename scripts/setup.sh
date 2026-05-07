@@ -134,14 +134,16 @@ prompt_scope() {
   local name="$1" desc="$2" notes="$3" default="$4"
   local yn ynhint
   [[ "$default" == "y" ]] && ynhint="Y/n" || ynhint="y/N"
-  echo -e "  ${BOLD}${name}${RESET}: ${desc}"
-  [[ -n "$notes" ]] && echo -e "    ${YELLOW}Note:${RESET} ${notes}"
+  # All display output goes to stderr so it isn't captured by $()
+  echo -e "  ${GREEN}●${RESET} ${BOLD}${name}${RESET}: ${desc}" >&2
+  [[ -n "$notes" ]] && echo -e "    ${YELLOW}Note:${RESET} ${notes}" >&2
   read -rp "    Enable? [${ynhint}]: " yn
   [[ -z "$yn" ]] && yn="$default"
   case "${yn,,}" in y|yes) echo "true" ;; *) echo "false" ;; esac
 }
 
-echo -e "  ${GREEN}●${RESET} ${BOLD}network${RESET} (always on)  VPN (WireGuard), DNS (Technitium), CA (Step CA), Traefik"
+echo -e "  ${GREEN}●${RESET} ${BOLD}network${RESET} (always on): VPN (WireGuard), DNS (Technitium), CA (Step CA), Traefik"
+echo "    (always enabled — required by all other scopes)"
 echo ""
 
 SCOPE_IDENTITY="$(    prompt_scope "identity"      "SSO / OIDC provider (Authentik)" \
