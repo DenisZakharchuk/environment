@@ -60,7 +60,7 @@ services:
     networks:
       - infra_net
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./config/docker-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
 
   # ── Traefik — Reverse Proxy & TLS Termination ─────────────────────────────────
