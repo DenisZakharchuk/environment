@@ -9,7 +9,7 @@ api:
 ping: {}
 
 log:
-  level: INFO
+  level: DEBUG
 
 accessLog: {}
 
@@ -42,6 +42,6 @@ certificatesResolvers:
     acme:
       # Step CA ACME endpoint — uses internal CA
       caServer: "https://step-ca:9000/acme/acme/directory"
-      email: "admin@${DOMAIN}"
+      email: "admin@infra.home"
       storage: /etc/traefik/acme/acme.json
       tlsChallenge: {}
