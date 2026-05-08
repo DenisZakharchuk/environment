@@ -71,6 +71,14 @@ services:
     image: traefik:v3.3
     container_name: traefik
     restart: unless-stopped
+    # Install internal CA into system trust store so LEGO/Go TLS trusts Step CA
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cp /etc/ssl/infra/root_ca.crt /usr/local/share/ca-certificates/infra-root-ca.crt
+        update-ca-certificates
+        exec traefik --configfile=/etc/traefik/traefik.yml
     depends_on:
       step-ca:
         condition: service_healthy
