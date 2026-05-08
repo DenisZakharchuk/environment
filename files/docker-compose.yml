@@ -36,5 +36,6 @@ services:
       - "traefik.http.routers.sftpgo.rule=Host(`files.${DOMAIN}`)"
       - "traefik.http.routers.sftpgo.entrypoints=websecure"
       - "traefik.http.routers.sftpgo.tls=true"
+      - "traefik.http.routers.sftpgo.tls.certresolver=step-ca"
       - "traefik.http.routers.sftpgo.middlewares=secure-headers@file"
       - "traefik.http.services.sftpgo.loadbalancer.server.port=8080"

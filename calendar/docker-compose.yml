@@ -24,6 +24,7 @@ services:
       - "traefik.http.routers.radicale.rule=Host(`cal.${DOMAIN}`)"
       - "traefik.http.routers.radicale.entrypoints=websecure"
       - "traefik.http.routers.radicale.tls=true"
+      - "traefik.http.routers.radicale.tls.certresolver=step-ca"
       # Forward auth via Authentik — users authenticated by SSO before reaching Radicale
       - "traefik.http.routers.radicale.middlewares=authentik-forward-auth@file,secure-headers@file"
       - "traefik.http.services.radicale.loadbalancer.server.port=5232"

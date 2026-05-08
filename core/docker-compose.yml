@@ -52,6 +52,7 @@ services:
       - "traefik.http.routers.step-ca.rule=Host(`ca.${DOMAIN}`)"
       - "traefik.http.routers.step-ca.entrypoints=websecure"
       - "traefik.http.routers.step-ca.tls=true"
+      - "traefik.http.routers.step-ca.tls.certresolver=step-ca"
       - "traefik.http.services.step-ca.loadbalancer.server.port=9000"
       - "traefik.http.services.step-ca.loadbalancer.server.scheme=https"
 
@@ -103,6 +104,7 @@ services:
       - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls=true"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=step-ca"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
       - "traefik.http.routers.traefik-dashboard.middlewares=auth-basic@file"
     healthcheck:
@@ -139,4 +141,5 @@ services:
       - "traefik.http.routers.dns-ui.rule=Host(`dns.${DOMAIN}`)"
       - "traefik.http.routers.dns-ui.entrypoints=websecure"
       - "traefik.http.routers.dns-ui.tls=true"
+      - "traefik.http.routers.dns-ui.tls.certresolver=step-ca"
       - "traefik.http.services.dns-ui.loadbalancer.server.port=5380"

@@ -32,5 +32,6 @@ services:
       - "traefik.http.routers.stalwart-admin.rule=Host(`mail.${DOMAIN}`)"
       - "traefik.http.routers.stalwart-admin.entrypoints=websecure"
       - "traefik.http.routers.stalwart-admin.tls=true"
+      - "traefik.http.routers.stalwart-admin.tls.certresolver=step-ca"
       - "traefik.http.routers.stalwart-admin.middlewares=secure-headers@file"
       - "traefik.http.services.stalwart-admin.loadbalancer.server.port=8080"

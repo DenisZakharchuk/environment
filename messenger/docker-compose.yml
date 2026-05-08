@@ -49,6 +49,7 @@ services:
       - "traefik.http.routers.dendrite.rule=Host(`matrix.${DOMAIN}`)"
       - "traefik.http.routers.dendrite.entrypoints=websecure"
       - "traefik.http.routers.dendrite.tls=true"
+      - "traefik.http.routers.dendrite.tls.certresolver=step-ca"
       - "traefik.http.routers.dendrite.middlewares=secure-headers@file"
       - "traefik.http.services.dendrite.loadbalancer.server.port=8008"
 
@@ -64,5 +65,6 @@ services:
       - "traefik.http.routers.element.rule=Host(`chat.${DOMAIN}`)"
       - "traefik.http.routers.element.entrypoints=websecure"
       - "traefik.http.routers.element.tls=true"
+      - "traefik.http.routers.element.tls.certresolver=step-ca"
       - "traefik.http.routers.element.middlewares=secure-headers@file"
       - "traefik.http.services.element.loadbalancer.server.port=80"

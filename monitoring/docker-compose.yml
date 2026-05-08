@@ -35,6 +35,7 @@ services:
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
       - "traefik.http.routers.prometheus.entrypoints=websecure"
       - "traefik.http.routers.prometheus.tls=true"
+      - "traefik.http.routers.prometheus.tls.certresolver=step-ca"
       - "traefik.http.routers.prometheus.middlewares=authentik-forward-auth@file,secure-headers@file"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
 
@@ -91,5 +92,6 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.tls.certresolver=step-ca"
       - "traefik.http.routers.grafana.middlewares=secure-headers@file"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
