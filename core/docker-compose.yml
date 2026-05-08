@@ -84,6 +84,7 @@ services:
     environment:
       # Trust the internal Step CA root so Traefik can reach the ACME endpoint
       LEGO_CA_CERTIFICATES: /etc/ssl/infra/root_ca.crt
+      DOMAIN: ${DOMAIN}
     volumes:
       - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./config/traefik/dynamic:/etc/traefik/dynamic:ro
