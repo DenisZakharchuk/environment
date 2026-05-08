@@ -31,6 +31,9 @@ services:
     restart: unless-stopped
     networks:
       - infra_net
+    # Use Technitium so Step CA can resolve *.infra.home for ACME TLS-ALPN validation
+    dns:
+      - "${HOST_IP}"
     volumes:
       - step-ca-data:/home/step
     environment:
