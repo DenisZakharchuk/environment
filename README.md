@@ -99,14 +99,31 @@ Start the network scope:
 make network-up
 ```
 
-Open `http://HOST_IP:5380` (Technitium DNS admin) and:
+Open `http://HOST_IP:5380` (Technitium DNS admin — direct IP, no VPN needed yet) and:
 - **Zones → Add Zone**: type your domain (e.g. `infra.home`), type: Primary
 - **Add Record**: type `A`, name `*.infra.home`, value `HOST_IP` (wildcard)
 - **Settings → Forwarders**: add `1.1.1.1` and `8.8.8.8`
 
-Then point your devices' DNS to `HOST_IP`. If the server goes down, fall back to the router IP as a secondary DNS so internet access is not lost.
+### 3. Connect to VPN
 
-### 3. Start identity (SSO)
+All internal services (`https://*.infra.home`) are only reachable through the WireGuard VPN. Connect once and everything is available — no per-device DNS changes needed, physical network untouched.
+
+**Create a peer** (from any machine that can reach `HOST_IP` directly):
+
+1. Open `http://HOST_IP:51821` (wg-easy UI — direct IP, before VPN is connected)
+2. Log in with the WireGuard password set during `make setup`
+3. Click **+ New Client**, name it, download or scan the QR code
+4. Connect with the WireGuard client on your device
+
+The generated client config includes:
+- `DNS = HOST_IP` — all DNS queries go to Technitium through the tunnel; `*.infra.home` resolves, public domains forward upstream
+- `AllowedIPs = 10.8.0.0/24, 192.168.50.0/24` — split tunnel: only VPN and server subnet traffic routes through the Pi, internet goes direct
+
+> **Adjusting `WG_ALLOWED_IPS`**: edit `.env` and recreate peers in the wg-easy UI (the value is baked into client configs at peer creation time). Use `0.0.0.0/0` for full tunnel.
+
+Once connected, `https://*.infra.home` works in the browser from any VPN-connected device.
+
+### 4. Start identity (SSO)
 
 ```bash
 make identity-up
@@ -114,7 +131,7 @@ make identity-up
 
 Open `https://auth.infra.home`, complete the Authentik first-run wizard, and set the `akadmin` password.
 
-### 4. Start remaining scopes
+### 5. Start remaining scopes
 
 ```bash
 make dev-up
@@ -129,7 +146,7 @@ Or start everything listed in `ENABLED_SCOPES` (.env) at once:
 make up
 ```
 
-### 5. Configure OIDC integrations
+### 6. Configure OIDC integrations
 
 After services are up, create OIDC apps in Authentik (and the Forgejo OAuth app for Woodpecker), then run:
 
@@ -253,19 +270,34 @@ Everything else (data dir creation, dependency checking, purge, health status) i
 - Certificates are 90-day (Step CA default for ACME), renewed automatically
 - The Step CA root certificate must be trusted by clients (browsers) — add it as a trusted CA once
 
-## DNS Setup Notes
+## DNS and VPN Access
 
-- Use a dedicated internal domain ending in `.home` or `.internal` (avoid `.local` — conflicts with mDNS)
-- Set a wildcard A-record `*.yourdomain.home → HOST_IP` in Technitium
-- Configure your devices to use `HOST_IP` as primary DNS and your router IP as secondary (fallback for when the server is down)
-- Add any router admin hostnames (e.g. `expertwifi.net`) to Technitium as a local zone if needed, or rely on the router-as-fallback DNS to resolve them
+All internal services are accessed through the WireGuard VPN — this means:
+- No per-device DNS configuration needed (VPN pushes `HOST_IP` as DNS automatically via `WG_DEFAULT_DNS`)
+- Physical network connection and DNS are untouched when VPN is disconnected
+- When VPN is off, `*.infra.home` is unreachable and the device uses its normal DNS
+
+**DNS requirements:**
+- Use an internal domain ending in `.home` or `.internal` (avoid `.local` — conflicts with mDNS)
+- Wildcard A-record `*.yourdomain.home → HOST_IP` in Technitium
+- Upstream forwarders (`1.1.1.1`, `8.8.8.8`) in Technitium so public domains resolve through the tunnel
+
+**Split tunnel vs full tunnel (`WG_ALLOWED_IPS` in `.env`):**
+
+| Value | Behaviour |
+|---|---|
+| `10.8.0.0/24,192.168.50.0/24` | Split tunnel — internet direct, internal traffic via VPN |
+| `0.0.0.0/0` | Full tunnel — all traffic (including internet) through Pi |
+
+After changing `WG_ALLOWED_IPS`, recreate all peers in the wg-easy UI — the value is baked into client configs at creation time.
 
 ## Post-Install Checklist
 
 - [ ] `make setup` completed — `.env` has no placeholder values
+- [ ] `make network-up` — Traefik, Step CA, Technitium DNS, WireGuard running
 - [ ] Technitium: internal zone and wildcard A-record created, upstream forwarders set
-- [ ] Router (or device) DNS points to `HOST_IP` as primary, router IP as secondary
-- [ ] Step CA root certificate trusted in browser/OS
+- [ ] WireGuard peer created in wg-easy UI and connected — `https://*.infra.home` resolves in browser
+- [ ] Step CA root certificate trusted in browser/OS (for green lock on internal sites)
 - [ ] Authentik: first-run wizard completed, `akadmin` password set
 - [ ] `make configure-oidc` run — all OIDC tokens written to `.env`
 - [ ] Services restarted after `configure-oidc`

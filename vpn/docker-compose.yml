@@ -32,7 +32,7 @@ services:
       # VPN clients use internal DNS server for name resolution
       WG_DEFAULT_DNS: "${HOST_IP}"
       WG_MTU: "1420"
-      WG_ALLOWED_IPS: "0.0.0.0/0"
+      WG_ALLOWED_IPS: "${WG_ALLOWED_IPS:-10.8.0.0/24,192.168.50.0/24}"
       WG_PERSISTENT_KEEPALIVE: "25"
       UI_TRAFFIC_STATS: "true"
       UI_CHART_TYPE: "1"
