@@ -1,22 +1,18 @@
 ROOT_DIR := $(shell pwd)
 COMPOSE := docker compose
 
-.PHONY: help setup init configure-oidc \
-        core core-down identity identity-down vpn vpn-down git git-down \
-        files files-down mail mail-down calendar calendar-down \
-        messenger messenger-down monitoring monitoring-down \
-        up-all down-all ps logs \
-        scope-network scope-network-down \
-        scope-identity scope-identity-down \
-        scope-dev scope-dev-down \
-        scope-productivity scope-productivity-down \
-        scope-communication scope-communication-down \
-        scope-observability scope-observability-down \
-        scope-all scope-down-all scope-status
+.PHONY: help setup init configure-oidc status ps logs \
+        network-up network-down network-purge \
+        identity-up identity-down identity-purge \
+        dev-up dev-down dev-purge \
+        productivity-up productivity-down productivity-purge \
+        communication-up communication-down communication-purge \
+        observability-up observability-down observability-purge \
+        up down purge purge-full
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
 setup: ## Interactive setup wizard: prompts for passwords, generates secrets, writes .env, calls init
 	@bash scripts/setup.sh
@@ -27,153 +23,80 @@ configure-oidc: ## Fill in post-UI OIDC tokens (run after services are up)
 init: ## Non-interactive bootstrap: Docker network, data dirs, Step CA (requires .env from 'make setup')
 	@bash scripts/init.sh
 
-# ── Core (must start first) ───────────────────────────────────────────────────
-core: ## Start core infrastructure: Traefik, Step CA, Technitium DNS
-	$(COMPOSE) -f core/docker-compose.yml --env-file .env up -d
+# ── Scope lifecycle (noun-verb: scope name first, action second) ──────────────
+# Each scope provides -up, -down, and -purge actions.
+# All metadata (compose dirs, data dirs, deps) lives in scopes/<name>.sh —
+# adding a new scope requires only a new scope file + 3 lines below.
 
-core-down: ## Stop core infrastructure
-	$(COMPOSE) -f core/docker-compose.yml down
+network-up: ## Start network scope: Traefik, Step CA, DNS, WireGuard
+	@bash scripts/scope.sh network up
 
-# ── Identity (start after core) ───────────────────────────────────────────────
-identity: ## Start identity provider: Authentik + PostgreSQL + Redis
-	$(COMPOSE) -f identity/docker-compose.yml --env-file .env up -d
+network-down: ## Stop network scope
+	@bash scripts/scope.sh network down
 
-identity-down: ## Stop identity provider
-	$(COMPOSE) -f identity/docker-compose.yml down
+network-purge: ## Purge network scope: stop containers, remove volumes, wipe data
+	@bash scripts/scope.sh network purge
 
-# ── VPN ───────────────────────────────────────────────────────────────────────
-vpn: ## Start VPN: WireGuard Easy
-	$(COMPOSE) -f vpn/docker-compose.yml --env-file .env up -d
+identity-up: ## Start identity scope: Authentik SSO/OIDC (requires: network)
+	@bash scripts/scope.sh identity up
 
-vpn-down: ## Stop VPN
-	$(COMPOSE) -f vpn/docker-compose.yml down
+identity-down: ## Stop identity scope
+	@bash scripts/scope.sh identity down
 
-# ── Git ───────────────────────────────────────────────────────────────────────
-git: ## Start Git hosting: Forgejo + Woodpecker CI
-	$(COMPOSE) -f git/docker-compose.yml --env-file .env up -d
+identity-purge: ## Purge identity scope
+	@bash scripts/scope.sh identity purge
 
-git-down: ## Stop Git hosting
-	$(COMPOSE) -f git/docker-compose.yml down
+dev-up: ## Start dev scope: Forgejo + Woodpecker CI
+	@bash scripts/scope.sh dev up
 
-# ── File sharing ──────────────────────────────────────────────────────────────
-files: ## Start file sharing: SFTPGo
-	$(COMPOSE) -f files/docker-compose.yml --env-file .env up -d
+dev-down: ## Stop dev scope
+	@bash scripts/scope.sh dev down
 
-files-down: ## Stop file sharing
-	$(COMPOSE) -f files/docker-compose.yml down
+dev-purge: ## Purge dev scope
+	@bash scripts/scope.sh dev purge
 
-# ── Mail ──────────────────────────────────────────────────────────────────────
-mail: ## Start mail server: Stalwart Mail
-	$(COMPOSE) -f mail/docker-compose.yml --env-file .env up -d
+productivity-up: ## Start productivity scope: SFTPGo, Stalwart, Radicale
+	@bash scripts/scope.sh productivity up
 
-mail-down: ## Stop mail server
-	$(COMPOSE) -f mail/docker-compose.yml down
+productivity-down: ## Stop productivity scope
+	@bash scripts/scope.sh productivity down
 
-# ── Calendar ──────────────────────────────────────────────────────────────────
-calendar: ## Start calendar/contacts: Radicale (CalDAV/CardDAV)
-	$(COMPOSE) -f calendar/docker-compose.yml --env-file .env up -d
+productivity-purge: ## Purge productivity scope
+	@bash scripts/scope.sh productivity purge
 
-calendar-down: ## Stop calendar
-	$(COMPOSE) -f calendar/docker-compose.yml down
+communication-up: ## Start communication scope: Dendrite + Element Web
+	@bash scripts/scope.sh communication up
 
-# ── Messenger ─────────────────────────────────────────────────────────────────
-messenger: ## Start messenger: Matrix Dendrite + Element Web
-	$(COMPOSE) -f messenger/docker-compose.yml --env-file .env up -d
+communication-down: ## Stop communication scope
+	@bash scripts/scope.sh communication down
 
-messenger-down: ## Stop messenger
-	$(COMPOSE) -f messenger/docker-compose.yml down
+communication-purge: ## Purge communication scope
+	@bash scripts/scope.sh communication purge
 
-# ── Monitoring ────────────────────────────────────────────────────────────────
-monitoring: ## Start monitoring: Prometheus + Grafana + Loki
-	$(COMPOSE) -f monitoring/docker-compose.yml --env-file .env up -d
+observability-up: ## Start observability scope: Prometheus + Loki + Grafana
+	@bash scripts/scope.sh observability up
 
-monitoring-down: ## Stop monitoring
-	$(COMPOSE) -f monitoring/docker-compose.yml down
+observability-down: ## Stop observability scope
+	@bash scripts/scope.sh observability down
 
-# ── Lifecycle helpers ─────────────────────────────────────────────────────────
-up-all: core identity vpn git files mail calendar messenger monitoring ## Start all services in order (see also: scope-all)
+observability-purge: ## Purge observability scope
+	@bash scripts/scope.sh observability purge
 
-down-all: ## Stop all services
-	@for svc in messenger calendar mail files git vpn identity core monitoring; do \
-		$(COMPOSE) -f $$svc/docker-compose.yml down 2>/dev/null || true; \
-	done
+# ── Aggregate lifecycle ────────────────────────────────────────────────────────
+up: ## Start all scopes in ENABLED_SCOPES (.env) in dependency order
+	@bash scripts/scope.sh all up
 
-ps: ## Show running containers
-	@docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+down: ## Stop all known scopes in reverse dependency order
+	@bash scripts/scope.sh all down
 
-logs: ## Tail logs for a service: make logs SVC=core
-	$(COMPOSE) -f $(SVC)/docker-compose.yml logs -f
+purge: ## Purge all scopes: stop containers, remove volumes, wipe all data (keeps .env)
+	@bash scripts/scope.sh all purge
 
-# ── Scope-based deployment ─────────────────────────────────────────────────────
-# Scope targets check hard dependencies before starting services.
-# Preferred over individual targets — respects dependency order.
-# Start all enabled scopes at once with: make scope-all
+purge-full: ## Full factory reset: purge all scopes + delete .env and .htpasswd
+	@bash scripts/scope.sh all purge --full
 
-scope-network: ## Start network scope: Traefik, Step CA, Technitium DNS, WireGuard
-	$(COMPOSE) -f core/docker-compose.yml --env-file .env up -d
-	$(COMPOSE) -f vpn/docker-compose.yml  --env-file .env up -d
-
-scope-network-down: ## Stop network scope
-	$(COMPOSE) -f vpn/docker-compose.yml  down
-	$(COMPOSE) -f core/docker-compose.yml down
-
-scope-identity: ## Start identity scope: Authentik SSO/OIDC (requires: network)
-	@bash scripts/check-scope-deps.sh identity
-	$(COMPOSE) -f identity/docker-compose.yml --env-file .env up -d
-
-scope-identity-down: ## Stop identity scope
-	$(COMPOSE) -f identity/docker-compose.yml down
-
-scope-dev: ## Start dev scope: Forgejo + Woodpecker CI (requires: network; soft: identity)
-	@bash scripts/check-scope-deps.sh dev --soft
-	$(COMPOSE) -f git/docker-compose.yml --env-file .env up -d
-
-scope-dev-down: ## Stop dev scope
-	$(COMPOSE) -f git/docker-compose.yml down
-
-scope-productivity: ## Start productivity scope: SFTPGo, Stalwart, Radicale (requires: network; soft: identity)
-	@bash scripts/check-scope-deps.sh productivity --soft
-	$(COMPOSE) -f files/docker-compose.yml    --env-file .env up -d
-	$(COMPOSE) -f mail/docker-compose.yml     --env-file .env up -d
-	$(COMPOSE) -f calendar/docker-compose.yml --env-file .env up -d
-
-scope-productivity-down: ## Stop productivity scope
-	$(COMPOSE) -f calendar/docker-compose.yml down
-	$(COMPOSE) -f mail/docker-compose.yml     down
-	$(COMPOSE) -f files/docker-compose.yml    down
-
-scope-communication: ## Start communication scope: Dendrite + Element Web (requires: network; soft: identity)
-	@bash scripts/check-scope-deps.sh communication --soft
-	$(COMPOSE) -f messenger/docker-compose.yml --env-file .env up -d
-
-scope-communication-down: ## Stop communication scope
-	$(COMPOSE) -f messenger/docker-compose.yml down
-
-scope-observability: ## Start observability scope: Prometheus + Loki + Grafana (requires: network; soft: identity)
-	@bash scripts/check-scope-deps.sh observability --soft
-	$(COMPOSE) -f monitoring/docker-compose.yml --env-file .env up -d
-
-scope-observability-down: ## Stop observability scope
-	$(COMPOSE) -f monitoring/docker-compose.yml down
-
-scope-all: ## Start all scopes listed in ENABLED_SCOPES (.env) in dependency order
-	@set -a && . .env && set +a; \
-	for scope in $$ENABLED_SCOPES; do \
-		echo ""; \
-		echo "==> Starting scope: $$scope"; \
-		$(MAKE) --no-print-directory scope-$$scope || exit 1; \
-	done
-
-scope-down-all: ## Stop all scopes in reverse order
-	@set -a && . .env && set +a; \
-	reversed=""; \
-	for s in $$ENABLED_SCOPES; do reversed="$$s $$reversed"; done; \
-	for scope in $$reversed; do \
-		echo "==> Stopping scope: $$scope"; \
-		$(MAKE) --no-print-directory scope-$$scope-down 2>/dev/null || true; \
-	done
-
-scope-status: ## Show live health status of all enabled scopes
+# ── Helpers ────────────────────────────────────────────────────────────────────
+status: ## Show live health status of all enabled scopes
 	@set -a && . .env && set +a; \
 	echo ""; \
 	echo "Scope health status (DOMAIN=$$DOMAIN):"; \
@@ -187,3 +110,9 @@ scope-status: ## Show live health status of all enabled scopes
 		fi; \
 	done; \
 	echo ""
+
+ps: ## Show running containers
+	@docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+logs: ## Tail logs for a service dir: make logs SVC=core
+	$(COMPOSE) -f $(SVC)/docker-compose.yml logs -f

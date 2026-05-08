@@ -85,7 +85,7 @@ check_scope() {
   else
     if [[ "$is_hard" == "hard" ]]; then
       err "Scope '${dep_name}' is NOT reachable (hard dependency of '${TARGET_SCOPE}')"
-      err "Start it first: make scope-${dep_name}"
+      err "Start it first: make ${dep_name}-up"
       return 1
     else
       warn "Scope '${dep_name}' is NOT reachable (soft dependency — services may have reduced functionality)"

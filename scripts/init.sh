@@ -48,21 +48,17 @@ docker network create infra_net 2>/dev/null && success "infra_net created" \
 section "Data directories"
 info "Creating data directories for enabled scopes..."
 
-declare -A SCOPE_DIRS
-SCOPE_DIRS["network"]="step-ca traefik technitium wireguard"
-SCOPE_DIRS["identity"]="authentik-postgres authentik-media authentik-certs authentik-redis"
-SCOPE_DIRS["dev"]="forgejo forgejo-postgres woodpecker"
-SCOPE_DIRS["productivity"]="sftpgo stalwart radicale"
-SCOPE_DIRS["communication"]="dendrite-postgres dendrite-media dendrite-keys"
-SCOPE_DIRS["observability"]="prometheus grafana loki"
-
 for scope in "${SCOPES[@]}"; do
-  if [[ -n "${SCOPE_DIRS[$scope]:-}" ]]; then
-    for d in ${SCOPE_DIRS[$scope]}; do
-      mkdir -p "$ROOT_DIR/data/$d"
-    done
-    success "  ${scope}: data dirs ready"
+  scope_file="$ROOT_DIR/scopes/${scope}.sh"
+  if [[ ! -f "$scope_file" ]]; then
+    warn "No scope file found for '${scope}' — skipping data dir creation"
+    continue
   fi
+  scope_data_dirs="$(bash -c "source \"$scope_file\"; echo \"\${SCOPE_DATA_DIRS:-}\"")"
+  for d in $scope_data_dirs; do
+    mkdir -p "$ROOT_DIR/data/$d"
+  done
+  success "  ${scope}: data dirs ready"
 done
 
 # ── Step CA init (network scope) ───────────────────────────────────────────────
@@ -139,18 +135,18 @@ fi
 echo ""
 success "Bootstrap complete. Enabled scopes: ${SCOPES[*]}"
 echo ""
-echo "  Start services with scope-specific make targets:"
+echo "  Start services with scope make targets (noun-verb convention):"
 echo ""
-scope_enabled "network"       && echo "    make scope-network        — Traefik, Step CA, DNS, WireGuard" || true
-scope_enabled "identity"      && echo "    make scope-identity       — Authentik SSO / OIDC" || true
-scope_enabled "dev"           && echo "    make scope-dev            — Forgejo + Woodpecker CI" || true
-scope_enabled "productivity"  && echo "    make scope-productivity   — SFTPGo, Stalwart, Radicale" || true
-scope_enabled "communication" && echo "    make scope-communication  — Dendrite + Element Web" || true
-scope_enabled "observability" && echo "    make scope-observability  — Prometheus + Loki + Grafana" || true
+scope_enabled "network"       && echo "    make network-up        — Traefik, Step CA, DNS, WireGuard" || true
+scope_enabled "identity"      && echo "    make identity-up       — Authentik SSO / OIDC" || true
+scope_enabled "dev"           && echo "    make dev-up            — Forgejo + Woodpecker CI" || true
+scope_enabled "productivity"  && echo "    make productivity-up   — SFTPGo, Stalwart, Radicale" || true
+scope_enabled "communication" && echo "    make communication-up  — Dendrite + Element Web" || true
+scope_enabled "observability" && echo "    make observability-up  — Prometheus + Loki + Grafana" || true
 echo ""
 echo "  Or start all enabled scopes in dependency order:"
-echo "    make scope-all"
+echo "    make up"
 echo ""
 echo "  After services are running:"
 echo "    make configure-oidc — Fill in post-UI OIDC tokens"
-echo "    make scope-status   — Check health of all running scopes"
+echo "    make status         — Check health of all running scopes"
