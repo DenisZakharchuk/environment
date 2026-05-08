@@ -44,4 +44,5 @@ certificatesResolvers:
       caServer: "https://step-ca:9000/acme/acme/directory"
       email: "admin@infra.home"
       storage: /etc/traefik/acme/acme.json
-      tlsChallenge: {}
+      httpChallenge:
+        entryPoint: web
