@@ -324,27 +324,29 @@ make logs SVC=<dir>    Tail logs for a compose dir (e.g. SVC=core)
 - `data/` is gitignored — contains all persistent service state
 - Authentik forward-auth protects internal services (Radicale, Prometheus, Grafana) from unauthenticated access
 
-## Future: Router-level VPN Fusion (zero-config LAN DNS)
+## Future: Router-level WireGuard Client (zero-config LAN DNS)
 
-**Goal**: Instead of each home LAN device needing its own WireGuard peer, the router connects to the Pi's WireGuard server once (via ASUS VPN Fusion) and advertises `HOST_IP` as DNS via DHCP. Every device on the LAN gets `*.infra.home` resolution automatically — no WireGuard client installation needed per device.
+**Goal**: Instead of each home LAN device needing its own WireGuard peer, the router connects to the Pi's WireGuard server once (as a WireGuard client) and advertises `HOST_IP` as DNS via DHCP. Every device on the LAN gets `*.infra.home` resolution automatically — no WireGuard client installation needed per device.
+
+Most consumer and prosumer routers support running as a WireGuard client: ASUS calls it "VPN Fusion", TP-Link calls it "VPN Client", Ubiquiti/UniFi, pfSense, OPNsense, MikroTik, and GL.iNet all expose it as a native WireGuard peer interface. The underlying mechanism is the same regardless of branding.
 
 **Architecture:**
 ```
-Router (VPN Fusion peer) → Pi WireGuard → Technitium DNS
+Router (WireGuard client peer) → Pi WireGuard server → Technitium DNS
     └── DHCP DNS = HOST_IP → all LAN devices resolve *.infra.home
 Per-device WireGuard peers: still used for remote/mobile access outside home
 ```
 
 **Planned steps:**
-1. Create a dedicated peer in wg-easy named `router` — use split tunnel `AllowedIPs: 10.8.0.0/24, 192.168.50.0/24`
-2. In the router admin UI: VPN Fusion → Add Profile → type WireGuard, paste peer config
+1. Create a dedicated peer in wg-easy named `router` — split tunnel `AllowedIPs: 10.8.0.0/24, 192.168.50.0/24`
+2. In the router admin UI: add a WireGuard VPN client profile, paste the peer config from wg-easy
 3. In the router admin UI: DHCP → DNS Server → `HOST_IP`, secondary `1.1.1.1`
 4. Per-device VPN peers remain for mobile/remote access only
 
 **Grey areas still to research:**
-- ASUS VPN Fusion peer creation asks for a Private Key directly — need to confirm whether it accepts a standard WireGuard keypair generated externally, or generates its own, and how to match that against the wg-easy server config
-- Whether VPN Fusion allows specifying `AllowedIPs` per profile or forces a fixed value
-- Interaction between VPN Fusion DNS and the router's existing DNS-over-TLS or DNSSEC settings
+- Some router UIs ask for a Private Key directly — need to confirm whether the router generates its own keypair (and provides the public key to register in wg-easy) or expects a keypair generated externally via `wg genkey`
+- Whether the router's VPN client UI allows specifying `AllowedIPs` per profile or forces a fixed value
+- Interaction between the router's WireGuard DNS setting and any existing DNS-over-TLS or DNSSEC configuration on the router
 
 ## Future: Docker Swarm
 
