@@ -73,15 +73,16 @@ if scope_enabled "network"; then
       -v "$ROOT_DIR/data/step-ca:/home/step" \
       --entrypoint /bin/sh \
       smallstep/step-ca:latest -c \
-        "head -c 32 /dev/urandom | base64 > /home/step/password.txt && \
+        "mkdir -p /home/step/secrets && \
+         head -c 32 /dev/urandom | base64 > /home/step/secrets/password && \
          step ca init \
            --name='Infra Local CA' \
            --dns='ca.${DOMAIN}' --dns='step-ca' --dns='localhost' \
            --address=':9000' \
            --provisioner='admin' \
            --deployment-type=standalone \
-           --password-file=/home/step/password.txt \
-           --provisioner-password-file=/home/step/password.txt \
+           --password-file=/home/step/secrets/password \
+           --provisioner-password-file=/home/step/secrets/password \
            --acme"
     success "Step CA initialized"
   fi
