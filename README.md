@@ -116,10 +116,10 @@ All internal services (`https://*.infra.home`) are only reachable through the Wi
 4. Connect with the WireGuard client on your device
 
 The generated client config includes:
-- `DNS = HOST_IP` — all DNS queries go to Technitium through the tunnel; `*.infra.home` resolves, public domains forward upstream
-- `AllowedIPs = 10.8.0.0/24, 192.168.50.0/24` — split tunnel: only VPN and server subnet traffic routes through the Pi, internet goes direct
+- `DNS = 10.8.0.1` — DNS queries go to Technitium through the tunnel via the WireGuard server's VPN IP; `*.infra.home` resolves, public domains forward upstream
+- `AllowedIPs = 10.8.0.0/24` — only VPN subnet traffic routes through the tunnel; traffic to `192.168.50.x` (or wherever your server lives) goes via the normal LAN route, internet goes direct
 
-> **Adjusting `WG_ALLOWED_IPS`**: edit `.env` and recreate peers in the wg-easy UI (the value is baked into client configs at peer creation time). Use `0.0.0.0/0` for full tunnel.
+> **Why not include the server's LAN subnet in `AllowedIPs`?** If the WireGuard endpoint is the server's LAN IP (`192.168.50.64`) and `192.168.50.0/24` is also in `AllowedIPs`, a routing loop forms — the tunnel needs to reach its own endpoint through itself. Use `WG_ALLOWED_IPS=0.0.0.0/0` (full tunnel) if you need to route all traffic through the Pi, or expose the server on a public IP/DDNS as the endpoint if you need the LAN subnet routed.
 
 Once connected, `https://*.infra.home` works in the browser from any VPN-connected device.
 
@@ -286,10 +286,10 @@ All internal services are accessed through the WireGuard VPN — this means:
 
 | Value | Behaviour |
 |---|---|
-| `10.8.0.0/24,192.168.50.0/24` | Split tunnel — internet direct, internal traffic via VPN |
+| `10.8.0.0/24` | VPN subnet only — safest default; no routing loop; LAN and internet go direct |
 | `0.0.0.0/0` | Full tunnel — all traffic (including internet) through Pi |
 
-After changing `WG_ALLOWED_IPS`, recreate all peers in the wg-easy UI — the value is baked into client configs at creation time.
+> **Avoid including the server's LAN subnet** (e.g. `192.168.50.0/24`) in `AllowedIPs` when `WG_HOST` is the server's LAN IP. It creates a routing loop — the tunnel cannot reach its own endpoint. This only works if `WG_HOST` is set to a public IP or DDNS hostname.
 
 ## Post-Install Checklist
 
@@ -338,7 +338,7 @@ Per-device WireGuard peers: still used for remote/mobile access outside home
 ```
 
 **Planned steps:**
-1. Create a dedicated peer in wg-easy named `router` — split tunnel `AllowedIPs: 10.8.0.0/24, 192.168.50.0/24`
+1. Create a dedicated peer in wg-easy named `router` — DNS `10.8.0.1`, AllowedIPs `10.8.0.0/24`
 2. In the router admin UI: add a WireGuard VPN client profile, paste the peer config from wg-easy
 3. In the router admin UI: DHCP → DNS Server → `HOST_IP`, secondary `1.1.1.1`
 4. Per-device VPN peers remain for mobile/remote access only

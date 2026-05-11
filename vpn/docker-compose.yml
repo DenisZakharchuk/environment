@@ -30,10 +30,10 @@ services:
       WG_HOST: "${HOST_IP}"
       PASSWORD_HASH: "${WG_PASSWORD_HASH}"
       WG_DEFAULT_ADDRESS: "${WG_DEFAULT_ADDRESS:-10.8.0.x}"
-      # VPN clients use internal DNS server for name resolution
-      WG_DEFAULT_DNS: "${HOST_IP}"
+      # VPN clients use Technitium via the WireGuard server IP (avoids routing loop with LAN IP as endpoint)
+      WG_DEFAULT_DNS: "10.8.0.1"
       WG_MTU: "1420"
-      WG_ALLOWED_IPS: "${WG_ALLOWED_IPS:-10.8.0.0/24,192.168.50.0/24}"
+      WG_ALLOWED_IPS: "${WG_ALLOWED_IPS:-10.8.0.0/24}"
       WG_PERSISTENT_KEEPALIVE: "25"
       UI_TRAFFIC_STATS: "true"
       UI_CHART_TYPE: "1"
