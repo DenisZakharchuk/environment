@@ -22,6 +22,7 @@ services:
       - net.ipv4.conf.all.src_valid_mark=1
     ports:
       - "51820:51820/udp"   # WireGuard VPN port — must be reachable externally
+      - "51821:51821"       # Web UI — direct access for initial peer setup (before VPN is connected)
     volumes:
       - wireguard-data:/etc/wireguard
     environment:
