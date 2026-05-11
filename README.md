@@ -324,6 +324,28 @@ make logs SVC=<dir>    Tail logs for a compose dir (e.g. SVC=core)
 - `data/` is gitignored — contains all persistent service state
 - Authentik forward-auth protects internal services (Radicale, Prometheus, Grafana) from unauthenticated access
 
+## Future: Router-level VPN Fusion (zero-config LAN DNS)
+
+**Goal**: Instead of each home LAN device needing its own WireGuard peer, the router connects to the Pi's WireGuard server once (via ASUS VPN Fusion) and advertises `HOST_IP` as DNS via DHCP. Every device on the LAN gets `*.infra.home` resolution automatically — no WireGuard client installation needed per device.
+
+**Architecture:**
+```
+Router (VPN Fusion peer) → Pi WireGuard → Technitium DNS
+    └── DHCP DNS = HOST_IP → all LAN devices resolve *.infra.home
+Per-device WireGuard peers: still used for remote/mobile access outside home
+```
+
+**Planned steps:**
+1. Create a dedicated peer in wg-easy named `router` — use split tunnel `AllowedIPs: 10.8.0.0/24, 192.168.50.0/24`
+2. In the router admin UI: VPN Fusion → Add Profile → type WireGuard, paste peer config
+3. In the router admin UI: DHCP → DNS Server → `HOST_IP`, secondary `1.1.1.1`
+4. Per-device VPN peers remain for mobile/remote access only
+
+**Grey areas still to research:**
+- ASUS VPN Fusion peer creation asks for a Private Key directly — need to confirm whether it accepts a standard WireGuard keypair generated externally, or generates its own, and how to match that against the wg-easy server config
+- Whether VPN Fusion allows specifying `AllowedIPs` per profile or forces a fixed value
+- Interaction between VPN Fusion DNS and the router's existing DNS-over-TLS or DNSSEC settings
+
 ## Future: Docker Swarm
 
 The stack is intentionally single-node. Swarm migration is possible with minimal changes:
