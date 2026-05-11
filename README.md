@@ -289,7 +289,7 @@ All internal services are accessed through the WireGuard VPN — this means:
 | `10.8.0.0/24` | VPN subnet only — safest default; no routing loop; LAN and internet go direct |
 | `0.0.0.0/0` | Full tunnel — all traffic (including internet) through Pi |
 
-> **Avoid including the server's LAN subnet** (e.g. `192.168.50.0/24`) in `AllowedIPs` when `WG_HOST` is the server's LAN IP. It creates a routing loop — the tunnel cannot reach its own endpoint. This only works if `WG_HOST` is set to a public IP or DDNS hostname.
+> **Avoid adding the server's LAN subnet** (e.g. `192.168.50.0/24`) to `AllowedIPs` when `WG_HOST` is the server's LAN IP — it creates a routing loop. Use `0.0.0.0/0` for full tunnel only if `WG_HOST` is a public IP or DDNS hostname.
 
 ## Post-Install Checklist
 
